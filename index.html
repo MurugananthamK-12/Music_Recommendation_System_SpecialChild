@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Music Recommendation System</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: #fff;
+      margin: 0;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 700px;
+      margin: auto;
+      background-color: rgba(255, 255, 255, 0.1);
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+    }
+
+    h1 {
+      text-align: center;
+      color: #fff;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background-color: #00c6ff;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    button:hover {
+      background-color: #0072ff;
+    }
+
+    .results {
+      margin-top: 25px;
+    }
+
+    .results table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    .results th,
+    .results td {
+      padding: 10px;
+      background-color: rgba(255, 255, 255, 0.15);
+      color: #fff;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .music-player {
+      margin-top: 30px;
+      text-align: center;
+    }
+
+    .music-player h3 {
+      margin-bottom: 10px;
+    }
+
+    audio {
+      width: 100%;
+      margin-top: 10px;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1>🎵 Music Recommendation System</h1>
+
+    <div class="form-group">
+      <label for="track-name">Track Name:</label>
+      <input type="text" id="track-name" placeholder="Enter track name" list="suggestions" autocomplete="off" />
+      <datalist id="suggestions"></datalist>
+    </div>
+
+    <div class="form-group">
+      <label for="condition">Condition:</label>
+      <select id="condition">
+        <option value="asd">ASD</option>
+        <option value="adhd">ADHD</option>
+        <option value="down_syndrome">Down Syndrome</option>
+        <option value="sensory_processing_disorder">Sensory Processing Disorder</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="num-rec">Number of Recommendations:</label>
+      <input type="number" id="num-rec" value="5" min="1" />
+    </div>
+
+    <button onclick="getRecommendations()">Get Recommendations</button>
+
+    <div class="results" id="results"></div>
+
+    <div class="music-player">
+      <h3 id="current-track-title">🎧 No Track Playing</h3>
+      <audio id="audio-player" controls></audio>
+    </div>
+  </div>
+
+  <script>
+    let currentTracks = [];
+
+    const demoAudioUrls = [
+      "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+      "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
+      "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
+      "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
+      "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3"
+    ];
+
+    async function getRecommendations() {
+      const trackName = document.getElementById("track-name").value;
+      const condition = document.getElementById("condition").value;
+      const numRec = document.getElementById("num-rec").value;
+
+      const response = await fetch(
+        `/recommend?track_name=${encodeURIComponent(trackName)}&condition=${encodeURIComponent(condition)}&num_rec=${numRec}`
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        currentTracks = data;
+        displayResults(data);
+        playTrack(0); // autoplay first song
+      } else {
+        document.getElementById("results").innerHTML = "❌ Error fetching recommendations.";
+      }
+    }
+
+    function displayResults(songs) {
+      const resultsDiv = document.getElementById("results");
+      if (songs.length === 0) {
+        resultsDiv.innerHTML = "No recommendations found.";
+        return;
+      }
+
+      let html = '<table><thead><tr><th>Artist</th><th>Track Name</th><th>Play</th></tr></thead><tbody>';
+      songs.forEach((song, index) => {
+        html += `<tr>
+                    <td>${song.artists}</td>
+                    <td>${song.track_name}</td>
+                    <td><button onclick="playTrack(${index})">▶️ Play</button></td>
+                 </tr>`;
+      });
+      html += '</tbody></table>';
+      resultsDiv.innerHTML = html;
+    }
+
+    function playTrack(index) {
+      const audioPlayer = document.getElementById("audio-player");
+      const trackTitle = document.getElementById("current-track-title");
+
+      const track = currentTracks[index];
+      if (track) {
+        trackTitle.textContent = `🎶 Now Playing: ${track.track_name} - ${track.artists}`;
+        audioPlayer.src = demoAudioUrls[index % demoAudioUrls.length]; // simulate different songs
+        audioPlayer.play();
+      }
+    }
+
+    // Autocomplete Logic
+    const trackNameInput = document.getElementById('track-name');
+    const suggestionsList = document.getElementById('suggestions');
+    let debounceTimer;
+
+    trackNameInput.addEventListener('input', () => {
+      clearTimeout(debounceTimer);
+      const query = trackNameInput.value;
+
+      if (query.length < 1) {
+        suggestionsList.innerHTML = '';
+        return;
+      }
+
+      debounceTimer = setTimeout(async () => {
+        try {
+          const response = await fetch(`/suggest?q=${encodeURIComponent(query)}`);
+          if (response.ok) {
+            const suggestions = await response.json();
+            suggestionsList.innerHTML = suggestions
+              .map(s => `<option value="${s}">`)
+              .join('');
+          }
+        } catch (error) {
+          console.error('Error fetching suggestions:', error);
+        }
+      }, 300); // 300ms debounce
+    });
+  </script>
+</body>
+
+</html>
